@@ -22,11 +22,13 @@ if (serviceAccount) {
     // Method 1: Using service account file
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
+        storageBucket: process.env.FIREBASE_STORAGE_BUCKET || 'localpill-9b150.firebasestorage.app',
     });
 } else if (process.env.FIREBASE_PROJECT_ID) {
     // Method 2: Using just Project ID (for development)
     admin.initializeApp({
-        projectId: process.env.FIREBASE_PROJECT_ID,
+        projectId: process.env.FIREBASE_PROJECT_ID || 'localpill-9b150',
+        storageBucket: process.env.FIREBASE_STORAGE_BUCKET || 'localpill-9b150.firebasestorage.app',
     });
     console.log('Firebase initialized with Project ID:', process.env.FIREBASE_PROJECT_ID);
 } else {
