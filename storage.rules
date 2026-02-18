@@ -1,0 +1,55 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isValidImage() {
+      return request.resource.size < 10 * 1024 * 1024 && // 10MB max
+             request.resource.contentType.matches('image/.*');
+    }
+    
+    function hasRole(role) {
+      return request.auth.token.role == role;
+    }
+    
+    // Prescription uploads (customer only, partners can read)
+    match /prescriptions/{userId}/{fileName} {
+      allow read: if isAuthenticated() && 
+                    (isOwner(userId) || hasRole('partner') || hasRole('agent'));
+      allow write: if isAuthenticated() && isOwner(userId) && isValidImage();
+      allow delete: if isOwner(userId);
+    }
+    
+    // Pharmacy verification documents (agents only)
+    match /pharmacy-docs/{pharmacyId}/{fileName} {
+      allow read: if isAuthenticated() && (hasRole('agent') || hasRole('admin'));
+      allow write: if isAuthenticated() && hasRole('agent') && isValidImage();
+      allow delete: if hasRole('admin');
+    }
+    
+    // Profile pictures (public read, owner write)
+    match /profile-pictures/{userId} {
+      allow read: if true; // Public
+      allow write: if isOwner(userId) && isValidImage();
+      allow delete: if isOwner(userId);
+    }
+    
+    // Pharmacy logos (public read, partner/agent write)
+    match /pharmacy-logos/{pharmacyId} {
+      allow read: if true; // Public
+      allow write: if isAuthenticated() && 
+                     (hasRole('partner') || hasRole('agent')) && 
+                     isValidImage();
+      allow delete: if hasRole('admin');
+    }
+  }
+}
