@@ -30,8 +30,12 @@ const config: Config = {
         'https://localpill-9b150.firebaseapp.com',
         'https://localpill.com',
         'https://www.localpill.com',
+        'https://admin.localpill.com',
+        'https://agent.localpill.com',
+        'https://partner.localpill.com',
         'https://localpill-partner.web.app',
-        'https://localpill-field-agent.web.app'
+        'https://localpill-agent-app.web.app',
+        'https://localpill-admin.web.app'
     ],
     otpExpiryMinutes: parseInt(process.env.OTP_EXPIRY_MINUTES || '10'),
     otpLength: parseInt(process.env.OTP_LENGTH || '6'),
