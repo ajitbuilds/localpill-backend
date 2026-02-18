@@ -28,15 +28,19 @@ export const createRequest = async (req: AuthenticatedRequest, res: Response): P
             is_emergency,
         } = req.body;
 
-        // Validation
-        if (!patient_name || !patient_phone || !patient_address || !medicines || medicines.length === 0) {
+        // Validation - patient_phone is optional, auto-filled from auth
+        const effectivePhone = patient_phone || user.phone || '';
+        if (!patient_name || !patient_address || !medicines || medicines.length === 0) {
             res.status(400).json({ error: 'Missing required fields' });
             return;
         }
 
         // Get user details
-        const userDoc = await db.collection(Collections.USERS).doc(user.phone).get();
-        const userData = userDoc.data();
+        let userData: any = {};
+        if (user.phone) {
+            const userDoc = await db.collection(Collections.USERS).doc(user.phone).get();
+            userData = userDoc.data() || {};
+        }
 
         // Create request with 5-minute expiry
         const now = new Date();
@@ -50,7 +54,7 @@ export const createRequest = async (req: AuthenticatedRequest, res: Response): P
             hasPrescription: has_prescription || false,
             prescriptionUrl: prescription_image_url,
             patientName: patient_name,
-            patientPhone: patient_phone,
+            patientPhone: effectivePhone,
             patientAddress: patient_address,
             patientLatitude: patient_latitude || 0,
             patientLongitude: patient_longitude || 0,

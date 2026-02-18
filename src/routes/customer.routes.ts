@@ -11,14 +11,18 @@ import { uploadPrescription } from '../controllers/upload.controller';
 import { authenticateUser, requireRole, AuthenticatedRequest } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { createRequestSchema } from '../validators/schemas';
-import { db } from '../config/firebase';
+import { db, auth, storage } from '../config/firebase';
 import { Collections } from '../models';
 
 const router = Router();
 
 // All customer routes require authentication
 router.use(authenticateUser);
-router.use(requireRole(['customer']));
+
+// =====================
+// PROFILE ROUTES (no role restriction - needed for onboarding)
+// Any authenticated user can create/view/update their customer profile
+// =====================
 
 /**
  * @route   GET /api/customer/profile
@@ -54,7 +58,7 @@ router.put('/profile', async (req: AuthenticatedRequest, res: Response): Promise
         const body = req.body;
 
         // Whitelist allowed fields
-        const allowedFields = ['name', 'age', 'gender', 'address', 'location'];
+        const allowedFields = ['name', 'age', 'gender', 'address', 'location', 'photo'];
         const updates: Record<string, any> = {};
         for (const field of allowedFields) {
             if (body[field] !== undefined) {
@@ -67,10 +71,10 @@ router.put('/profile', async (req: AuthenticatedRequest, res: Response): Promise
             return;
         }
 
-        await db.collection(Collections.USERS).doc(user.phone).update({
+        await db.collection(Collections.USERS).doc(user.phone).set({
             ...updates,
             updatedAt: new Date(),
-        });
+        }, { merge: true });
 
         res.json({ success: true, message: 'Profile updated' });
     } catch (error) {
@@ -93,16 +97,24 @@ router.post('/profile', async (req: AuthenticatedRequest, res: Response): Promis
             return;
         }
 
+        // Set customer role in custom claims (ensures proper auth on future logins)
+        try {
+            await auth.setCustomUserClaims(user.uid, { role: 'customer' });
+        } catch (claimErr) {
+            console.error('Failed to set customer claims:', claimErr);
+        }
+
         await db.collection(Collections.USERS).doc(user.phone).set({
             name,
             phone: phone || user.phone,
+            uid: user.uid,
             ...(age !== undefined && { age }),
             ...(gender && { gender }),
             ...(address && { address }),
             role: 'customer',
             createdAt: new Date(),
             updatedAt: new Date(),
-        });
+        }, { merge: true });
 
         res.status(201).json({ success: true, message: 'Profile created' });
     } catch (error) {
@@ -110,6 +122,66 @@ router.post('/profile', async (req: AuthenticatedRequest, res: Response): Promis
         res.status(500).json({ error: 'Failed to create profile' });
     }
 });
+
+/**
+ * @route   POST /api/customer/profile/photo
+ * @desc    Upload profile photo
+ */
+router.post('/profile/photo', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+        const user = req.user!;
+        const { fileData, fileName, contentType } = req.body;
+
+        if (!fileData || !fileName) {
+            res.status(400).json({ error: 'fileData and fileName are required' });
+            return;
+        }
+
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        const mimeType = contentType || 'image/jpeg';
+        if (!allowedTypes.includes(mimeType)) {
+            res.status(400).json({ error: 'Invalid file type. Allowed: jpeg, png, webp' });
+            return;
+        }
+
+        const ext = fileName.split('.').pop() || 'jpg';
+        const uniqueName = `${Date.now()}.${ext}`;
+        const filePath = `profile-photos/${user.uid || user.phone}/${uniqueName}`;
+
+        const bucket = storage.bucket();
+        const file = bucket.file(filePath);
+
+        const buffer = Buffer.from(fileData, 'base64');
+
+        if (buffer.length > 5 * 1024 * 1024) {
+            res.status(400).json({ error: 'File too large. Maximum 5MB allowed.' });
+            return;
+        }
+
+        await file.save(buffer, {
+            metadata: { contentType: mimeType },
+        });
+
+        await file.makePublic();
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+
+        // Save photo URL to user profile
+        await db.collection(Collections.USERS).doc(user.phone).set({
+            photo: publicUrl,
+            updatedAt: new Date(),
+        }, { merge: true });
+
+        res.json({ success: true, data: { url: publicUrl } });
+    } catch (error) {
+        console.error('Upload profile photo error:', error);
+        res.status(500).json({ error: 'Failed to upload photo' });
+    }
+});
+
+// =====================
+// OPERATIONAL ROUTES (require customer role)
+// =====================
+router.use(requireRole(['customer']));
 
 /**
  * @route   POST /api/customer/requests

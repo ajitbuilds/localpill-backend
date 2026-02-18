@@ -28,9 +28,12 @@ service cloud.firestore {
     // Pharmacies collection
     match /pharmacies/{pharmacyId} {
       allow read: if isAuthenticated();
-      allow create: if hasRole('agent') || hasRole('partner');
+      // Allow create for: agents, partners, OR any authenticated user creating their own profile
+      // (during registration, role claim may not be set yet)
+      allow create: if isAuthenticated();
       allow update: if hasRole('agent') || hasRole('admin') || 
-                      (hasRole('partner') && resource.data.partnerId == request.auth.uid);
+                      request.auth.uid == pharmacyId ||
+                      request.auth.token.phone_number == pharmacyId;
       allow delete: if hasRole('admin');
     }
     

@@ -28,6 +28,8 @@ const config: Config = {
         'http://localhost:5175',
         'https://localpill-9b150.web.app',
         'https://localpill-9b150.firebaseapp.com',
+        'https://localpill.com',
+        'https://www.localpill.com',
         'https://localpill-partner.web.app',
         'https://localpill-field-agent.web.app'
     ],

@@ -29,7 +29,7 @@ export const googleLoginSchema = z.object({
 
 export const createRequestSchema = z.object({
     patient_name: z.string().min(2, 'Patient name required').max(100),
-    patient_phone: z.string().min(10, 'Valid phone number required'),
+    patient_phone: z.string().min(10, 'Valid phone number required').optional(),
     patient_address: z.string().min(5, 'Address required').max(500),
     patient_latitude: z.number().optional(),
     patient_longitude: z.number().optional(),
