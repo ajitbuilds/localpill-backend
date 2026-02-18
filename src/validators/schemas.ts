@@ -57,7 +57,23 @@ export const respondToRequestSchema = z.object({
 });
 
 export const updatePharmacyProfileSchema = z.object({
+    // User/Pharmacist Fields
     name: z.string().min(2).max(100).optional(),
+    bio: z.string().max(1000).optional(),
+    languages: z.string().max(200).optional(),
+    qualification: z.string().optional(),
+    experience: z.number().optional(), // Can be string in frontend but backend expects number usually, checking controller... controller whitelist allows it but doesn't cast. Frontend sends number? 
+    regNumber: z.string().optional(),
+    stateCouncil: z.string().optional(),
+    additionalQuals: z.array(z.string()).optional(),
+    socialLinks: z.object({
+        linkedin: z.string().optional(),
+        instagram: z.string().optional(),
+        facebook: z.string().optional(),
+        x: z.string().optional(),
+    }).optional(),
+
+    // Store Fields (keeping existing ones just in case)
     address: z.string().min(5).max(500).optional(),
     phone: z.string().min(10).max(15).optional(),
     licenseNumber: z.string().optional(),
@@ -67,6 +83,7 @@ export const updatePharmacyProfileSchema = z.object({
         close: z.string(),
     }).optional(),
     isOpen: z.boolean().optional(),
+    profileImage: z.string().optional(),
 });
 
 // ============= AGENT SCHEMAS =============
